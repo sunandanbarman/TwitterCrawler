@@ -15,11 +15,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -32,29 +34,34 @@ import twitter4j.FilterQuery;
 import twitter4j.JSONArray;
 import twitter4j.JSONException;
 import twitter4j.JSONObject;
+import twitter4j.Query;
+import twitter4j.QueryResult;
 import twitter4j.StallWarning;
 import twitter4j.Status;
 import twitter4j.StatusDeletionNotice;
 import twitter4j.StatusListener;
+import twitter4j.Twitter;
 import twitter4j.TwitterException;
+import twitter4j.TwitterFactory;
 import twitter4j.TwitterObjectFactory;
 import twitter4j.TwitterStream;
 import twitter4j.TwitterStreamFactory;
 import twitter4j.conf.ConfigurationBuilder;
+import twitter4j.json.DataObjectFactory;
 
 
 public class TwitterDemo {
 
-    static String consumerKeyStr 		= "XXXXXXXXXXXXXXXXXXXXXXXX";
-	static String consumerSecretStr 	= "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
-	static String accessTokenStr 		= "XXXXXX-XXXXXXXXXXXXXXXXXX";
-	static String accessTokenSecretStr 	= "XXXXXXXXXXXXXXXXXXXXXXXXX";
+    static String consumerKeyStr 		= "WZSv8sHDBn73hexm27uYKQAgk";
+	static String consumerSecretStr 	= "pKpnJdH5oBTHsCGZJb71wVv7cOEbYoHi1WdJp9nJ969tXBFAFC";
+	static String accessTokenStr 		= "2959803912-yh9Hx6xh95UBF4IvkwQzXSWuIIVD5iGvMX9xN9Y";
+	static String accessTokenSecretStr 	= "50IwxSPSONSBHO4jdxC7P6k1zYvMmMLLj7bRlband7RsE";
 	
 	private Properties prop = null;
 	private String[] languages;
 	public int languageCount = 0; // keep count of the tweet found, after the count has reached the MAX_VALUE, the stream MUST be stopped and language updated
 	private int tweetCount = 0; // keep count of incoming tweets, must be reset to 0 after it has reached MAX_TWEET_COUNT
-	private static int MAX_TWEET_COUNT = 200; // at most 100 tweets from the stream for a language
+	private static int MAX_TWEET_COUNT = 200; // at most 200 tweets from the stream for a language
 	private final static Object lock = new Object();
 	public List<String> tweetRawJSONData ;
 	public JSONObject jsonObject;
@@ -63,7 +70,6 @@ public class TwitterDemo {
 	{
 		tweetRawJSONData = new ArrayList<>();
 		langKeyWordPair  = new HashMap<>();
-		//KeyWords = new String[];
 	}
 	/**
 	 * 
@@ -72,8 +78,6 @@ public class TwitterDemo {
 	public void MyPropAllKeys(String fileName){
          try ( InputStream inputStream = new FileInputStream(fileName)) {
             this.prop = new Properties();
-            //is = this.getClass().getResourceAsStream(fileName);
-            
             prop.load(inputStream);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -111,51 +115,12 @@ public class TwitterDemo {
             nCount++;
         }
 	}   
-		/*String lang = "en,de,ru,fr,ar"; //default
-		//EnglishKeyWords = "Books,Theatre,tv,television,arrow,brad pitt,angelina jolie,jolie,hollywood,bollywood,oscars";
-		//TODO : Generate list of German and Russian keywords
-		try ( InputStream inputStream = new FileInputStream(fileName))
-		{
-			
-			Properties prop = new Properties();
-			if ( inputStream != null)
-			{
-				prop.load(inputStream);
-				/*if (!prop.getProperty("Language").trim().equalsIgnoreCase("")) {
-					lang = prop.getProperty("Language").trim();
-					
-					KeyWords = new String[lang.split(",").length];
-				}*/
-				/*KeyWords[0] = prop.getProperty("EnglishKeyWords");
-				KeyWords[1] = prop.getProperty("RussianKeyWords");
-				KeyWords[2] = prop.getProperty("GermanKeyWords");
-				KeyWords[3] = prop.getProperty("FrenchKeyWords");
-				KeyWords[4] = prop.getProperty("ArabicKeyWords");*/
-				/*if (!prop.getProperty("EnglishKeyWords").equalsIgnoreCase("")) {
-					EnglishKeyWords = prop.getProperty("EnglishKeyWords");
-				}
-				if (!prop.getProperty("GermanKeyWords").equalsIgnoreCase("")) {
-					GermanKeyWords = prop.getProperty("GermanKeyWords");
-				}
-				if (!prop.getProperty("RussianKeyWords").equalsIgnoreCase("")) {
-					RussianKeyWords = prop.getProperty("RussianKeyWords");
-				}*/				
-			//}
-		/*}
-		catch(Exception ex)
-		{
-			System.out.println("Exception occured in getting properties function :" + ex.getMessage());
-		}*/
-		//return (lang);
-	//}
 	
 	StatusListener listener = new StatusListener(){
 	    public void onStatus(Status status) {
-	        //String lang = status.getLang().toLowerCase();
 	    	try
 	    	{
 		    	String lang = status.getLang();
-		    	//System.out.println("tweet : " + status.getText());
 	    		if  (  languages[languageCount].equalsIgnoreCase(lang)  )
 		    	{
 			    	if ( !status.getText().trim().equalsIgnoreCase("")) // only to index those tweets which has some text in it
@@ -169,14 +134,9 @@ public class TwitterDemo {
 			    		}
 			    		System.out.println(status.getText() + "\nLanguage :" + status.getLang().toString() + "\nCount :" + tweetCount + "\n****************\n");
 			    	}
-		    	} else {
-		    		//System.out.println("Lang :" + lang );
 		    	}
 	    	}
-	    	catch(Exception ex)
-	    	{
-	    		
-	    	}
+	    	catch(Exception ex) {  	}
 	    }
 	    public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
 	    	
@@ -201,7 +161,7 @@ public class TwitterDemo {
 	{
 		File directory = new File(DirectoryName);
 		if (!directory.exists()) {
-			if (directory.mkdir()) {
+			if (directory.mkdirs()) {
 				return true;
 			} else {
 				return false;
@@ -223,34 +183,109 @@ public class TwitterDemo {
 			// TODO Auto-generated catch block
 			e2.printStackTrace();
 		}
+		ArrayList<String> langList = new ArrayList<>();
+		langList.add("ar");
+		langList.add("de");
+		langList.add("en");
+		langList.add("fr");		
+		langList.add("ru");
+		
 		simpleDateFormat.applyPattern("yyyy-MM-dd'T'hh:mm:ss'Z'");
-		List<String> hashtag, expandedUrlList ;// = new ArrayList<>();
-
+		List<String> hashtag, expandedUrlList, displayUrlList, urlList , userMentions_ScreenName, userMentions_name, userMentions_id;
+		
 		try {
-			JSONArray jsonArray_hashtag, jsonArray_entity_urls;
-			JSONObject jObj;
+			JSONArray jsonArray_hashtag, jsonArray_entity_urls, jsonArray_userMentions;
+			JSONObject jsonObj_Users, jsonObj_extended_entities_media, jObj;
 			for ( int i =0; i  < jsonArray_Temp.length(); i++ ) {
-				//jObj.
 				jObj = new JSONObject(jsonArray_Temp.getJSONObject(i).toString());
 				jsonObject = new JSONObject();
 				jsonObject.put("id", jObj.get("id"));
 				jsonObject.put("lang", jObj.get("lang"));
+				try {
+					jsonObject.put("source", jObj.get("source"));
+				}
+				catch(Exception ex) {
+					System.out.println("Source field not found ! Skipping...");
+				}
+				try {
+					jsonObject.put("favorited", jObj.get("favorited"));
+				} catch (Exception e) {
+					System.out.println("Favorited field not found ! Skipping...");
+				}				
 				jsonObject.put("text_" + jObj.get("lang") , jObj.get("text"));
+				for  (String s : langList) {
+					if ( !(jObj.get("lang").toString().equals(s)) ) {
+						jsonObject.put("text_" + s , "");
+					}
+				}
 				jsonObject.put("created_at", simpleDateFormat.format( new Date(jObj.get("created_at").toString())   ));
-				
-				jsonArray_hashtag = new JSONArray(jObj.getJSONObject("entities").getJSONArray("hashtags").toString());
-				hashtag = new ArrayList<>();
-				for ( int hashtagCounter = 0; hashtagCounter < jsonArray_hashtag.length() ; hashtagCounter++ ) {
-					hashtag.add(jsonArray_hashtag.getJSONObject(hashtagCounter).get("text").toString());
+				try {
+					if ( jObj.getJSONObject("entities") != null ) {
+						jsonArray_hashtag = new JSONArray(jObj.getJSONObject("entities").getJSONArray("hashtags").toString());
+						hashtag = new ArrayList<>();
+						for ( int hashtagCounter = 0; hashtagCounter < jsonArray_hashtag.length() ; 		hashtagCounter++ ) {
+							hashtag.add(jsonArray_hashtag.getJSONObject(hashtagCounter).get("text").toString());
+						}
+						jsonObject.put("entities_tweet_hashtags", hashtag.toString());
+					
+						jsonArray_entity_urls = new JSONArray(jObj.getJSONObject("entities").getJSONArray("urls").toString());
+						expandedUrlList = new ArrayList<>();
+						displayUrlList  = new ArrayList<>();
+						urlList = new ArrayList<>();
+						for ( int k = 0; k < jsonArray_entity_urls.length() ; k++ ) {
+							expandedUrlList.add(jsonArray_entity_urls.getJSONObject(k).get("expanded_url").toString());
+							displayUrlList.add(jsonArray_entity_urls.getJSONObject(k).get("display_url").toString());
+							urlList.add(jsonArray_entity_urls.getJSONObject(k).get("url").toString());
+						}
+						
+						
+						jsonObject.put("entities_tweet_expandedUrl",expandedUrlList.toString());
+						jsonObject.put("entities_tweet_urls",expandedUrlList.toString());
+						jsonObject.put("entities_tweet_displayUrl",expandedUrlList.toString());
+					}
+				} catch (Exception e) {
+					System.out.println("Entities field not found ! Skipping...");
+				}	
+				//extended entities array
+				try {
+					if ( jObj.getJSONObject("extended_entities") != null) {
+						jsonObj_extended_entities_media = new JSONObject(jObj.getJSONObject("extended_entities").getJSONArray("media").get(0).toString());
+						jsonObject.put("entities_tweet_media_url", jsonObj_extended_entities_media.get("media_url"));
+					}
 				}
-				jsonObject.put("tweet_hashtag", hashtag.toString());
-				
-				jsonArray_entity_urls = new JSONArray(jObj.getJSONObject("entities").getJSONArray("urls").toString());
-				expandedUrlList = new ArrayList<>();
-				for ( int entityUrlCount = 0; entityUrlCount < jsonArray_entity_urls.length() ; entityUrlCount++ ) {
-					expandedUrlList.add(jsonArray_entity_urls.getJSONObject(entityUrlCount).get("expanded_url").toString());
+				catch(Exception ex) {
+					System.out.println("Extended_entities not found. Skipping....");
 				}
-				jsonObject.put("tweet_urls",expandedUrlList.toString());
+				//user_mentions array
+				//if (jObj.getJSONObject("entities") )
+				userMentions_ScreenName = new ArrayList<>();
+				userMentions_name       = new ArrayList<>();
+				userMentions_id         = new ArrayList<>();
+				try {
+					jsonArray_userMentions = new JSONArray(jObj.getJSONObject("entities").getJSONArray("user_mentions").toString());
+					for (int k = 0 ; k < jsonArray_userMentions.length(); k++) {
+						userMentions_ScreenName.add(jsonArray_userMentions.getJSONObject(k).get("screen_name").toString());
+						userMentions_name.add(jsonArray_userMentions.getJSONObject(k).get("name").toString());
+						userMentions_id.add(jsonArray_userMentions.getJSONObject(k).get("id").toString());
+						
+					}
+					jsonObject.put("entities_user_mentions_screen_name",userMentions_ScreenName.toString());
+					jsonObject.put("entities_user_mentions_name",userMentions_name.toString());
+					jsonObject.put("entities_user_mentions_id",userMentions_id.toString());
+				}
+				catch(Exception ex) {
+					System.out.println("Exception occured while fetching user_mentions ! Skipping...");
+				}
+				//users information array
+				try {
+					jsonObject.put("users_followers_count", jObj.getJSONObject("user").get("followers_count"));
+					jsonObject.put("users_screen_name", jObj.getJSONObject("user").get("screen_name"));
+					jsonObject.put("users_verified", jObj.getJSONObject("user").get("verified"));
+					jsonObject.put("users_lang", jObj.getJSONObject("user").get("lang"));
+					jsonObject.put("users_profile_image_url", jObj.getJSONObject("user").get("profile_image_url"));
+				} catch (Exception e) {
+					System.out.println("Users information not found ! Skipping...");
+				}
 				
 				jsonArray.put(jsonObject);
 		} 
@@ -260,17 +295,22 @@ public class TwitterDemo {
 		}
 		return jsonArray.toString();
 		
+		
 	}
 	@SuppressWarnings("deprecation")
 	public void WriteTweetDataInUTF8(String fileNameWithTweetData, List<String> tweetRawJSONData) {
 		
 		String directory ;
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
-		directory = languages[languageCount] + "//"  + simpleDateFormat.format(new Date());
-		CreateDirectory(directory);
-		//tweetRawJSONData.add(convertJSONRawTorequiredFormat());
+		List<String> tweetFinalJSONData = new ArrayList<>();
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd_hh_mm_ss");
+		directory = "Tweets\\" + languages[languageCount] + "\\"  + simpleDateFormat.format(new Date());
+		if (!CreateDirectory(directory)) {
+			System.out.println(directory  +" not created");
+		}
+		
 	    try {
-	    	File file = new File(directory + "//" +   fileNameWithTweetData);
+	    	File file = new File(directory +  "//" + fileNameWithTweetData);
+	    System.out.println(directory + "//" + fileNameWithTweetData);	
 	    	if (!file.exists()) {
 	    		file.createNewFile();
 	    	}
@@ -287,12 +327,7 @@ public class TwitterDemo {
 			e.printStackTrace();
 		}
 	}
-
-	public void extractRelevantJSONFields(String rawJSONData)
-	{
-		
-	}
-	public static void main(String[] args) throws TwitterException {
+]	public static void main(String[] args) throws TwitterException {
 
 		TwitterDemo tweetDemo = new TwitterDemo();
 		String tweetKeyWords[] = null;
@@ -323,21 +358,6 @@ public class TwitterDemo {
 			FilterQuery fq = new FilterQuery();
 			//tweetDemo.languages = tweetFilters.split(",");
 			tweetKeyWords = tweetDemo.langKeyWordPair.get(tweetDemo.languages[tweetDemo.languageCount]).split(",");
-			/*switch(tweetDemo.languages[tweetDemo.languageCount])
-			{
-			case "en":
-				tweetKeyWords = tweetDemo.EnglishKeyWords.split(",");
-				break;
-			case "de":
-				tweetKeyWords = tweetDemo.GermanKeyWords.split(",");
-				break;
-			case "ru":
-				tweetKeyWords = tweetDemo.RussianKeyWords.split(",");
-				break;			
-			default:
-				tweetKeyWords = tweetDemo.EnglishKeyWords.split(",");
-				break;
-			}*/
 			// DONT use both language and keywords, as these are logical OR, not logical AND
 			fq.track(tweetKeyWords);
 			twitterStream.addListener(tweetDemo.listener);
